@@ -254,12 +254,12 @@
       <button id="help-btn">HOW TO PLAY / 互动说明</button>
       <div id="help-panel" class="hidden">
         <div class="help-k">① 入场方式</div>
-        <div class="help-d"><span class="help-k">☝ 举起一根食指</span>：舞台将被点亮，灯光、音乐与角色正式登场</div>
+        <div class="help-d"><span class="help-k">☝ 举起一根食指，轻轻摇晃</span>：舞台将被点亮，灯光、音乐与角色正式登场</div>
 
         <div style="margin-top:10px;" class="help-k">② 手势互动</div>
         <div class="help-d"><span class="help-k">L / O / V / E</span>：单字母手势，触发对应视觉与音效</div>
-        <div class="help-d" style="margin-top:6px;"><span class="help-k">✋ 五指张开</span>：全场爆散，进入演唱会高潮</div>
         <div class="help-d" style="margin-top:6px;"><span class="help-k">🤟 LOVE</span>：比出 LOVE 手势，舞台将回应你的情绪</div>
+        <div class="help-d" style="margin-top:6px;"><span class="help-k">✋ 五指张开</span>：全场爆散，进入演唱会高潮</div>
 
         <div style="margin-top:10px;" class="help-k">③ 离场与待机</div>
         <div class="help-d">当双手离开画面，舞台会慢慢回到暗场，等待下一次入场</div>
@@ -319,6 +319,12 @@
       debounceLoveLetterMs: 150,
       debounceIdleMs: 400,
       debounceExitMs: 120,
+
+      // ✅ 新增：手进入画面后的“稳定期”，避免刚入画时误判 L/SCATTER
+      handWarmupMs: 260,
+
+      // ✅ 新增：把 SCATTER 的 debounce 从 0 提升，抑制“无手/噪声”误触发
+      debounceScatterMs: 220,
 
       maydayBaseY: 18.0,
       maydayIdleScale: 1.08,
@@ -395,7 +401,7 @@
       V: new Audio('./audio/V.MP3'),
       E: new Audio('./audio/E.MP3'),
       LOVEING: new Audio('./audio/loveing.MP3'),
-      TAKECARE: new Audio('./audio/takecare.MP3')   // ✅ 新增
+      TAKECARE: new Audio('./audio/takecare.MP3')
     };
     for (const k of Object.keys(AUDIO)) {
       AUDIO[k].preload = 'auto';
@@ -469,7 +475,7 @@
         await this.playOne('LOVEING', { allowRestart: true });
       },
 
-      async playScatterTakecare() {            // ✅ 新增
+      async playScatterTakecare() {
         await this.playOne('TAKECARE', { allowRestart: true });
       }
     };
@@ -485,6 +491,9 @@
 
     let lastHandSeenAt = 0;
     let firstLoadDone = false;
+
+    // ✅ 新增：手开始出现的时间戳（用于 warmup）
+    let handPresentSince = 0;
 
     let lastIndexX = null, lastIndexY = null;
     let handEnergy = 0;
@@ -538,7 +547,9 @@
       createBoboSprite();
       createGlowstick();
 
+      currentState = "__BOOT__"; // ✅ 强制触发一次 PRE_IDLE 进入逻辑（含 dingding）
       applyState(STATE.PRE_IDLE);
+
 
       window.addEventListener('resize', resizeRenderer);
       if (window.visualViewport) {
@@ -1128,56 +1139,87 @@
       }
     }
 
-    // ✅ 新增：基础几何距离工具（用于更稳的“拇指外展”判定）
-    function dist2(a, b) {
+    // =========================
+    // 几何工具
+    // =========================
+    function dist(a, b) {
       const dx = a.x - b.x;
       const dy = a.y - b.y;
       return Math.hypot(dx, dy);
     }
 
     // =========================
-    // 手势解析（L 更容易触发）
+    // 手势解析：三点优化
+    // 1) L：更严格的“拇指外展” + “拇指-食指张开角度”门槛，减少单指入画误判
+    // 2) O：改为“拳头形态”检测，支持手心/手背
+    // 3) SCATTER：更严格 + 非0 debounce + warmup 期间禁用
     // =========================
     function classifyGestureFromLandmarks(lm) {
-      const indexUp = lm[8].y < lm[6].y;
-      const midUp   = lm[12].y < lm[10].y;
-      const ringUp  = lm[16].y < lm[14].y;
-      const pinkyUp = lm[20].y < lm[18].y;
+      const wrist = lm[0];
 
-      // ===== 更稳的“拇指外展”判定（放宽阈值）=====
-      // palmWidth：食指根(5)到小指根(17) 的宽度
-      const palmWidth = Math.max(1e-6, dist2(lm[5], lm[17]));
-      // thumbTip 到 palmCenter 的距离
+      const fingerExtended = (tipIdx, pipIdx, margin = 0.02) => {
+        const dt = dist(lm[tipIdx], wrist);
+        const dp = dist(lm[pipIdx], wrist);
+        return (dt - dp) > margin;
+      };
+      const fingerCurled = (tipIdx, pipIdx, margin = 0.01) => {
+        const dt = dist(lm[tipIdx], wrist);
+        const dp = dist(lm[pipIdx], wrist);
+        return (dt - dp) <= margin;
+      };
+
+      const indexExt  = fingerExtended(8, 6, 0.02);
+      const middleExt = fingerExtended(12, 10, 0.02);
+      const ringExt   = fingerExtended(16, 14, 0.02);
+      const pinkyExt  = fingerExtended(20, 18, 0.02);
+
+      const indexCurl  = fingerCurled(8, 6, 0.01);
+      const middleCurl = fingerCurled(12, 10, 0.01);
+      const ringCurl   = fingerCurled(16, 14, 0.01);
+      const pinkyCurl  = fingerCurled(20, 18, 0.01);
+
+      const palmWidth = Math.max(1e-6, dist(lm[5], lm[17]));
       const palmCenter = { x: (lm[5].x + lm[17].x) * 0.5, y: (lm[5].y + lm[17].y) * 0.5 };
-      const thumbOut = dist2(lm[4], palmCenter) / palmWidth;
 
-      // thumbOutRatio 越大，拇指越“外展”
-      // 这里取较宽松阈值：>= 0.78（比之前更容易触发）
-      const thumbExtended = thumbOut >= 1.00;
+      const thumbOutRatio = dist(lm[4], palmCenter) / palmWidth;
 
-      // SCATTER：五指张开
-      const openPalm = indexUp && midUp && ringUp && pinkyUp && thumbExtended;
-      if (openPalm) return "SCATTER";
+      // ✅ 更严格：拇指“外展”门槛提高，降低“单指入画=拇指被噪声外展”误判 L
+      const thumbExtended = thumbOutRatio >= 1.28;
 
-      // LOVE：拇指+食指+小指
-      if (indexUp && pinkyUp && !midUp && !ringUp && thumbExtended) return "LOVE";
+      // ✅ 你要求：拇指硬性收起（用于 E / O）
+      const thumbCurled = thumbOutRatio <= 0.80;
 
-      // E：中指 + 无名指 + 小指（食指必须不抬起；拇指不限制）
-      if (!indexUp && midUp && ringUp && pinkyUp) return "E";
+      // ✅ 新增：L 需要“拇指-食指”明显分开（角度/张开感）
+      const thumbIndexSep = dist(lm[4], lm[8]) / palmWidth; // 越大越像 L 的“夹角”
+      const thumbIndexOpen = thumbIndexSep >= 0.74;
 
-      // V：食指+中指（必须优先于 L，避免 L 抢 V）
-      if (indexUp && midUp && !ringUp && !pinkyUp) return "V";
+      // ✅ 新增：拳头检测（支持手心/手背）
+      // 让四指 tip 接近 palmCenter（无论手心/手背，拳头都满足）
+      const tipDistAvg =
+        (dist(lm[8], palmCenter) + dist(lm[12], palmCenter) + dist(lm[16], palmCenter) + dist(lm[20], palmCenter)) / 4;
+      const fistCompact = (tipDistAvg / palmWidth) <= 0.72;
 
-      // IDLE：单食指（拇指不外展）
-      if (indexUp && !midUp && !ringUp && !pinkyUp && !thumbExtended) return "IDLE";
+      // 五指张开
+      if (indexExt && middleExt && ringExt && pinkyExt && thumbExtended) return "SCATTER";
 
-      // ✅ L：食指竖直 + 拇指外展；其余三指允许最多 1 根误抬起（更好用）
-      const otherUpCount = [midUp, ringUp, pinkyUp].filter(Boolean).length;
-      if (indexUp && thumbExtended && otherUpCount <= 1) return "L";
+      // LOVE：拇指 + 食指 + 小指；其余收
+      if (indexExt && pinkyExt && middleCurl && ringCurl && thumbExtended) return "LOVE";
 
-      // O：握拳（更宽容）
-      const count = [indexUp, midUp, ringUp, pinkyUp].filter(Boolean).length;
-      if (count === 0 && !thumbExtended) return "O";
+      // V：食指 + 中指；其余收；避免被 L/Love 抢走，要求拇指不要外展
+      if (indexExt && middleExt && ringCurl && pinkyCurl && !thumbExtended) return "V";
+
+      // ✅ IDLE：单食指伸出即可（PRE_IDLE -> IDLE 点亮核心）
+      // 为减少误判 L：明确要求拇指不要外展
+      if (indexExt && middleCurl && ringCurl && pinkyCurl && !thumbExtended) return "IDLE";
+
+      // ✅ L：食指伸直 + 拇指外展 + 明显“L 夹角” + 其余收
+      if (indexExt && middleCurl && ringCurl && pinkyCurl && thumbExtended && thumbIndexOpen) return "L";
+
+      // ✅ E：中/无/小三指伸出；食指收；拇指硬收起（按你的需求）
+      if (middleExt && ringExt && pinkyExt && indexCurl && thumbCurled) return "E";
+
+      // ✅ O：拳头（四指卷曲 + 形态紧凑），拇指不允许外展（但不强制一定硬收，以兼容“拇指压在拳上”）
+      if (indexCurl && middleCurl && ringCurl && pinkyCurl && fistCompact && !thumbExtended) return "O";
 
       return null;
     }
@@ -1194,7 +1236,7 @@
     }
 
     function debounceMsFor(state) {
-      if (state === STATE.SCATTER) return 0;
+      if (state === STATE.SCATTER) return CONFIG.debounceScatterMs; // ✅ 抑制无手误触发
       if (state === STATE.LOVE || state === STATE.LETTER) return CONFIG.debounceLoveLetterMs;
       if (state === STATE.IDLE) return CONFIG.debounceIdleMs;
       if (state === STATE.PRE_IDLE) return CONFIG.debounceExitMs;
@@ -1226,7 +1268,6 @@
         } else if (currentState === STATE.LOVE) {
           await AudioBus.playLove();
         } else if (currentState === STATE.SCATTER) {
-          // ✅ 改动：SCATTER 切入即停其他并播放 takecare
           await AudioBus.playScatterTakecare();
         }
       })();
@@ -1279,6 +1320,7 @@
 
           firstLoadDone = true;
           lastHandSeenAt = Date.now();
+          handPresentSince = 0;
 
           predict();
         };
@@ -1309,67 +1351,89 @@
     function predict() {
       const now = performance.now();
       rawGesture = null;
+
+      const prevHasHand = hasHand;
       hasHand = false;
 
       if (handLandmarker && webcam && webcam.readyState >= 2) {
         const results = handLandmarker.detectForVideo(webcam, now);
-        if (results.landmarks && results.landmarks.length > 0) {
-          hasHand = true;
-          lastHandSeenAt = Date.now();
 
+        // ✅ 新增：用 handedness score 做“无手误报”门槛（若不可用则默认 1）
+        const score = results?.handednesses?.[0]?.[0]?.score ?? 1.0;
+
+        if (score >= 0.60 && results.landmarks && results.landmarks.length > 0) {
           const lm = results.landmarks[0];
 
-          const ix = 1 - lm[8].x;
-          const iy = lm[8].y;
+          // ✅ 新增：极小手/噪声剔除（掌宽太小直接当无手）
+          const palmWidth = Math.hypot(lm[5].x - lm[17].x, lm[5].y - lm[17].y);
+          if (palmWidth >= 0.045) {
+            hasHand = true;
+            lastHandSeenAt = Date.now();
 
-          rawGesture = classifyGestureFromLandmarks(lm);
+            // ✅ 记录手首次出现时间（warmup）
+            if (!prevHasHand) {
+              handPresentSince = Date.now();
+            }
 
-          if (lastIndexX != null && lastIndexY != null) {
-            const dx = ix - lastIndexX;
-            const dy = iy - lastIndexY;
-            const v = Math.min(1, Math.hypot(dx, dy) * 18);
-            handEnergy = handEnergy * 0.86 + v * 0.14;
+            // 交互跟随：仍按镜像观感映射
+            const ix = 1 - lm[8].x;
+            const iy = lm[8].y;
 
-            const sx = (ix - 0.5) * 2;
-            handSwayX = handSwayX * 0.88 + sx * 0.12;
+            rawGesture = classifyGestureFromLandmarks(lm);
 
-            handSwayVel = handSwayVel * 0.82 + dx * 8.0 * 0.18;
-          }
-          lastIndexX = ix;
-          lastIndexY = iy;
+            // ✅ warmup 期间：只允许点亮 IDLE（单指），禁用 L/SCATTER/LOVE/LETTER
+            const inWarmup = (handPresentSince > 0) && ((Date.now() - handPresentSince) < CONFIG.handWarmupMs);
+            if (inWarmup) {
+              rawGesture = (rawGesture === 'IDLE') ? 'IDLE' : null;
+            }
 
-          if (rawGesture === 'LOVE' || rawGesture === 'SCATTER') {
-            const hx0 = 1 - lm[0].x;
-            const hx9 = 1 - lm[9].x;
-            const handSize = Math.hypot(hx0 - hx9, lm[0].y - lm[9].y);
+            if (lastIndexX != null && lastIndexY != null) {
+              const dx = ix - lastIndexX;
+              const dy = iy - lastIndexY;
+              const v = Math.min(1, Math.hypot(dx, dy) * 18);
+              handEnergy = handEnergy * 0.86 + v * 0.14;
 
-            const vFOV = camera.fov * Math.PI / 180;
-            const visibleHeight = 2 * Math.tan(vFOV / 2) * camera.position.z;
-            const visibleWidth = visibleHeight * camera.aspect;
+              const sx = (ix - 0.5) * 2;
+              handSwayX = handSwayX * 0.88 + sx * 0.12;
 
-            const textBaseWidth = 40;
-            const minWidth = visibleWidth / 3.2;
-            const minScale = minWidth / textBaseWidth;
+              handSwayVel = handSwayVel * 0.82 + dx * 8.0 * 0.18;
+            }
+            lastIndexX = ix;
+            lastIndexY = iy;
 
-            const farSize = 0.05;
-            const nearSize = 0.4;
-            const maxScale = 1.8;
+            if (rawGesture === 'LOVE' || rawGesture === 'SCATTER') {
+              const hx0 = 1 - lm[0].x;
+              const hx9 = 1 - lm[9].x;
+              const handSize = Math.hypot(hx0 - hx9, lm[0].y - lm[9].y);
 
-            let t = (handSize - farSize) / (nearSize - farSize);
-            t = Math.max(0, Math.min(1, t));
-            const scaled = maxScale * (1 - t) + minScale * t;
+              const vFOV = camera.fov * Math.PI / 180;
+              const visibleHeight = 2 * Math.tan(vFOV / 2) * camera.position.z;
+              const visibleWidth = visibleHeight * camera.aspect;
 
-            if (rawGesture === 'LOVE') targetLoveScale = scaled;
-            if (rawGesture === 'SCATTER') targetScatterScale = scaled;
+              const textBaseWidth = 40;
+              const minWidth = visibleWidth / 3.2;
+              const minScale = minWidth / textBaseWidth;
 
-            targetGroupX = (ix - 0.5) * 18;
-            targetGroupY = 0;
-          } else if (rawGesture === 'IDLE') {
-            targetGroupX = (ix - 0.5) * 10;
-            targetGroupY = 0;
-          } else {
-            targetGroupX = 0;
-            targetGroupY = 0;
+              const farSize = 0.05;
+              const nearSize = 0.4;
+              const maxScale = 1.8;
+
+              let t = (handSize - farSize) / (nearSize - farSize);
+              t = Math.max(0, Math.min(1, t));
+              const scaled = maxScale * (1 - t) + minScale * t;
+
+              if (rawGesture === 'LOVE') targetLoveScale = scaled;
+              if (rawGesture === 'SCATTER') targetScatterScale = scaled;
+
+              targetGroupX = (ix - 0.5) * 18;
+              targetGroupY = 0;
+            } else if (rawGesture === 'IDLE') {
+              targetGroupX = (ix - 0.5) * 10;
+              targetGroupY = 0;
+            } else {
+              targetGroupX = 0;
+              targetGroupY = 0;
+            }
           }
         }
       }
@@ -1501,11 +1565,11 @@
         maydaySystem.visible = show;
         if (show) {
           const opacity = (currentState === STATE.PRE_IDLE) ? 0.28 : 0.95;
-          const base = (currentState === STATE.PRE_IDLE) ? CONFIG.maydayPreScale : CONFIG.maydayIdleScale;
+          const base = (currentState === STATE.PRE_IDLE) ? 0.92 : 1.08;
 
           maydaySystem.material.opacity = opacity;
 
-          const sway = handSwayX * CONFIG.maydaySwayMax;
+          const sway = handSwayX * 0.28;
           maydaySystem.rotation.z = sway + Math.sin(time * 4.0) * 0.03 * (currentState === STATE.IDLE ? (0.6 + handEnergy) : 0.35) + handSwayVel * 0.015;
           maydaySystem.position.x = handSwayX * 9.5;
 
