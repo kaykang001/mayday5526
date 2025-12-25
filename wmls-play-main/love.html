@@ -1,0 +1,1567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"
+  />
+  <title>MAYDAY LAND</title>
+  <link rel="icon" href="data:,">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Tinos:ital@0;1&display=swap"
+    rel="stylesheet"
+  />
+
+  <style>
+    :root {
+      --bg-color: #050505;
+      --gold-color: #D4AF37;
+      --panel-bg: rgba(5,5,5,0.60);
+      --panel-border: rgba(212,175,55,0.25);
+      --text-dim: #bbb;
+    }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: var(--bg-color);
+      font-family: 'Tinos', serif;
+      user-select: none;
+      touch-action: none;
+    }
+
+    #ui-layer {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    #webcam-wrapper {
+      position: absolute;
+      bottom: 20px;
+      left: 16px;
+      pointer-events: auto;
+      width: 168px;
+    }
+
+    #webcam-container {
+      width: 160px;
+      height: 120px;
+      border: 1px solid rgba(212, 175, 55, 0.2);
+      border-radius: 6px;
+      overflow: hidden;
+      background: #000;
+      margin-bottom: 8px;
+      transition: opacity 0.25s ease, visibility 0.25s ease;
+    }
+
+    #webcam-wrapper.hidden #webcam-container {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+
+    .btn {
+      font-family: 'Cinzel', serif;
+      color: #999;
+      font-size: 10px;
+      background: transparent;
+      border: 1px solid rgba(120,120,120,0.30);
+      padding: 6px 12px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: all 0.25s;
+      width: 160px;
+      border-radius: 6px;
+    }
+    .btn:hover { color: var(--gold-color); border-color: var(--gold-color); }
+
+    #loader {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: var(--gold-color);
+      font-family: 'Cinzel', serif;
+      font-size: 14px;
+      text-align: center;
+      pointer-events: none;
+      z-index: 12;
+    }
+
+    #start-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      pointer-events: auto;
+      background: radial-gradient(circle at center, rgba(20,20,20,0.70), rgba(0,0,0,0.95));
+    }
+
+    #start-panel {
+      width: min(560px, 92vw);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 18px 18px 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.55);
+      background: var(--panel-bg);
+      backdrop-filter: blur(6px);
+    }
+
+    #start-title {
+      font-family: 'Cinzel', serif;
+      color: #fff;
+      font-size: 18px;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+
+    #start-subtitle {
+      color: #cfcfcf;
+      font-size: 12px;
+      font-style: italic;
+      margin-bottom: 12px;
+    }
+
+    #start-desc {
+      color: var(--text-dim);
+      font-size: 12px;
+      line-height: 1.65;
+      margin-bottom: 14px;
+    }
+
+    #start-desc b { color: #fff; font-weight: 700; }
+
+    #start-btn {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(212,175,55,0.55);
+      background: rgba(212,175,55,0.10);
+      color: #fff;
+      font-family: 'Cinzel', serif;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    #start-btn:hover { background: rgba(212,175,55,0.18); }
+
+    #start-note {
+      margin-top: 10px;
+      color: #8f8f8f;
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    #start-overlay.hidden { display: none; }
+
+    #help-wrap {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      pointer-events: auto;
+      z-index: 15;
+      width: min(360px, 92vw);
+    }
+
+    #help-btn {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(212,175,55,0.28);
+      background: rgba(5,5,5,0.35);
+      color: #ddd;
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    #help-panel {
+      margin-top: 8px;
+      border: 1px solid rgba(212,175,55,0.20);
+      border-radius: 12px;
+      background: rgba(5,5,5,0.55);
+      padding: 10px 12px;
+      color: #cfcfcf;
+      font-size: 12px;
+      line-height: 1.6;
+      backdrop-filter: blur(6px);
+    }
+    #help-panel.hidden { display: none; }
+
+    .help-k { color: #fff; font-weight: 700; }
+    .help-d { color: #bbb; }
+    .help-small { font-size: 11px; color: #9a9a9a; }
+
+    @media (max-width: 480px) {
+      #webcam-wrapper { bottom: 14px; left: 12px; }
+      #help-wrap { top: 10px; right: 10px; }
+      #help-panel { font-size: 11.5px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="loader">LOADING AI MODEL...</div>
+
+  <div id="start-overlay">
+    <div id="start-panel">
+      <div id="start-title">欢迎来到 MAYDAY 的互动舞台</div>
+      <div id="start-subtitle">你的双手，就是今晚的灯光与音浪</div>
+
+      <div id="start-desc">
+        本页面将使用你的摄像头，用 <b>手势</b> 点亮舞台、挥动应援、触发现场效果。<br />
+        不会保存影像，不会上网传输，一切只发生在你的设备上。<br /><br />
+        🎫 <b>准备入场？</b> 点击下方按钮，开启摄像头；舞台将在暗场中等待你的到来。
+      </div>
+
+      <button id="start-btn">START SHOW / 开启舞台</button>
+
+      <div id="start-note">
+        建议使用手机竖屏体验；请使用 <b>HTTPS</b> 访问。<br />
+        若没有声音，请确认媒体音量已开启（静音键也要打开）。
+      </div>
+    </div>
+  </div>
+
+  <div id="ui-layer">
+    <div id="webcam-wrapper">
+      <div id="webcam-container">
+        <video id="webcam" autoplay playsinline muted></video>
+      </div>
+      <button class="btn" id="toggle-cam">HIDE CAMERA</button>
+    </div>
+
+    <div id="help-wrap">
+      <button id="help-btn">HOW TO PLAY / 互动说明</button>
+      <div id="help-panel" class="hidden">
+        <div class="help-k">① 入场方式</div>
+        <div class="help-d"><span class="help-k">☝ 举起一根食指</span>：舞台将被点亮，灯光、音乐与角色正式登场</div>
+
+        <div style="margin-top:10px;" class="help-k">② 手势互动</div>
+        <div class="help-d"><span class="help-k">L / O / V / E</span>：单字母手势，触发对应视觉与音效</div>
+        <div class="help-d" style="margin-top:6px;"><span class="help-k">✋ 五指张开</span>：全场爆散，进入演唱会高潮</div>
+        <div class="help-d" style="margin-top:6px;"><span class="help-k">🤟 LOVE</span>：比出 LOVE 手势，舞台将回应你的情绪</div>
+
+        <div style="margin-top:10px;" class="help-k">③ 离场与待机</div>
+        <div class="help-d">当双手离开画面，舞台会慢慢回到暗场，等待下一次入场</div>
+
+        <div style="margin-top:10px;" class="help-k">④ 小提示（演唱会友好版）</div>
+        <div class="help-small">
+          - 使用明亮环境，识别会更稳定<br />
+          - 手势保持 0.5 秒更容易被识别<br />
+          - 如果没有声音，请检查手机是否静音<br />
+          - 每一次举手，舞台都会回应
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from './libs/three.module.js';
+    import { FilesetResolver, HandLandmarker } from './libs/tasks-vision.js';
+
+    function isMobileDevice() {
+      const ua = navigator.userAgent || '';
+      const mobile = /Android|iPhone|iPad|iPod|Mobile|Silk|Kindle|BlackBerry|Opera Mini|IEMobile/i.test(ua);
+      const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+      return mobile || coarse;
+    }
+    const IS_MOBILE = isMobileDevice();
+
+    const STATE = {
+      PRE_IDLE: 'PRE_IDLE',
+      IDLE: 'IDLE',
+      LETTER: 'LETTER',
+      LOVE: 'LOVE',
+      SCATTER: 'SCATTER'
+    };
+
+    const CONFIG = {
+      isMobile: IS_MOBILE,
+
+      particleCount: IS_MOBILE ? 14000 : 32000,
+      particleSize: IS_MOBILE ? 0.45 : 0.38,
+
+      lerpSpeed: IS_MOBILE ? 0.14 : 0.16,
+      colorLerp: 0.08,
+
+      cameraZ: 40,
+      maxDpr: IS_MOBILE ? 1.5 : 2.0,
+
+      preFallMin: IS_MOBILE ? 0.006 : 0.007,
+      preFallMax: IS_MOBILE ? 0.016 : 0.018,
+
+      idleSwirlOmega: IS_MOBILE ? 0.38 : 0.46,
+      idleSwirlJitter: 0.05,
+      idleHandBoost: 1.8,
+
+      noHandReturnMs: 5000,
+
+      debounceLoveLetterMs: 150,
+      debounceIdleMs: 400,
+      debounceExitMs: 120,
+
+      maydayBaseY: 18.0,
+      maydayIdleScale: 1.08,
+      maydayPreScale: 0.92,
+      maydaySwayMax: 0.28,
+
+      boboSpriteScale: IS_MOBILE ? 12.5 : 16.0,
+      boboSpriteY: IS_MOBILE ? -13.0 : -8.5,
+      boboWobbleAmp: 1.05,
+      boboWobbleFreq: 1.0,
+      boboSwayMax: 0.28,
+      boboScaleBoost: 0.08,
+
+      glowstickScaleRatioToBobo: 2/3,
+      glowstickFollowZ: 6,
+      glowstickSwayMax: 0.50,
+
+      galaxyCount: IS_MOBILE ? 90000 : 140000,
+      galaxySize: IS_MOBILE ? 0.22 : 0.25,
+      galaxyRadius: 300,
+      galaxyBranches: 10,
+      galaxySpin: 1.0,
+      galaxyRandomness: 1.2,
+      galaxyRotSpeed: 0.0014,
+
+      palette: [0xff3b30, 0x007aff, 0xff2d55, 0xffcc00, 0x34c759, 0xffffff],
+      gold: 0xD4AF37
+    };
+
+    const toggleBtn = document.getElementById('toggle-cam');
+    const camWrapper = document.getElementById('webcam-wrapper');
+    const startOverlay = document.getElementById('start-overlay');
+    const startBtn = document.getElementById('start-btn');
+    const helpBtn = document.getElementById('help-btn');
+    const helpPanel = document.getElementById('help-panel');
+    const loader = document.getElementById('loader');
+
+    camWrapper.classList.remove('hidden');
+    toggleBtn.innerText = "HIDE CAMERA";
+    toggleBtn.onclick = () => {
+      const isHidden = camWrapper.classList.toggle('hidden');
+      toggleBtn.innerText = isHidden ? "SHOW CAMERA" : "HIDE CAMERA";
+    };
+    helpBtn.onclick = () => helpPanel.classList.toggle('hidden');
+
+    let scene, camera, renderer;
+
+    let particles, geometry, material;
+    let currentPositions, targetPositions, currentColors, targetColors;
+
+    let vx, vy, vz, seed, hue, radius0, angle0;
+
+    let galaxySystem = null;
+    let galaxyGroup = null;
+
+    let maydaySystem = null;
+    let maydayGeo = null;
+    let maydayFitScale = 1.0;
+
+    let boboSprite = null;
+
+    let glowstick = null;
+    const GLOWSTICK_MODEL_HEIGHT = 9.0;
+
+    let handLandmarker = null;
+    let webcam = null;
+    let visionReady = false;
+
+    const AUDIO = {
+      PRE_IDLE: new Audio('./audio/dingding.mp3'),
+      IDLE: new Audio('./audio/yaya.mp3'),
+      L: new Audio('./audio/L.MP3'),
+      O: new Audio('./audio/O.MP3'),
+      V: new Audio('./audio/V.MP3'),
+      E: new Audio('./audio/E.MP3'),
+      LOVEING: new Audio('./audio/loveing.MP3'),
+      TAKECARE: new Audio('./audio/takecare.MP3')   // ✅ 新增
+    };
+    for (const k of Object.keys(AUDIO)) {
+      AUDIO[k].preload = 'auto';
+      AUDIO[k].playsInline = true;
+    }
+    AUDIO.IDLE.loop = true;
+    AUDIO.LOVEING.loop = false;
+    AUDIO.TAKECARE.loop = false;
+
+    const AudioBus = {
+      currentKey: null,
+      lastDingAt: -1,
+
+      stopAll() {
+        for (const key of Object.keys(AUDIO)) {
+          try { AUDIO[key].pause(); AUDIO[key].currentTime = 0; } catch (_) {}
+        }
+        this.currentKey = null;
+      },
+
+      async playOne(key, { allowRestart = true } = {}) {
+        if (this.currentKey === key && !allowRestart) return;
+        this.stopAll();
+        this.currentKey = key;
+        try {
+          AUDIO[key].currentTime = 0;
+          await AUDIO[key].play();
+        } catch (e) {
+          console.warn('Audio play failed:', key, e);
+        }
+      },
+
+      async unlockAllSilently() {
+        const keys = Object.keys(AUDIO);
+        for (const key of keys) {
+          const a = AUDIO[key];
+          const prevVol = a.volume;
+          try {
+            a.volume = 0;
+            a.muted = false;
+            a.currentTime = 0;
+            const p = a.play();
+            if (p && typeof p.then === 'function') await p;
+            a.pause();
+            a.currentTime = 0;
+          } catch (_) {
+            try { a.pause(); a.currentTime = 0; } catch (_) {}
+          } finally {
+            a.volume = prevVol;
+          }
+        }
+        this.stopAll();
+      },
+
+      async playPreIdleDingding() {
+        const now = Date.now();
+        if (this.lastDingAt > 0 && (now - this.lastDingAt) < 15000) return;
+        this.lastDingAt = now;
+        await this.playOne('PRE_IDLE', { allowRestart: true });
+      },
+
+      async playIdleLoop() {
+        await this.playOne('IDLE', { allowRestart: false });
+      },
+
+      async playLetter(letter) {
+        await this.playOne(letter, { allowRestart: true });
+      },
+
+      async playLove() {
+        await this.playOne('LOVEING', { allowRestart: true });
+      },
+
+      async playScatterTakecare() {            // ✅ 新增
+        await this.playOne('TAKECARE', { allowRestart: true });
+      }
+    };
+
+    let currentState = STATE.PRE_IDLE;
+    let currentLetter = null;
+
+    let hasHand = false;
+    let rawGesture = null;
+
+    let candidateKey = null;
+    let candidateSince = 0;
+
+    let lastHandSeenAt = 0;
+    let firstLoadDone = false;
+
+    let lastIndexX = null, lastIndexY = null;
+    let handEnergy = 0;
+    let handSwayX = 0;
+    let handSwayVel = 0;
+
+    let targetGroupX = 0;
+    let targetGroupY = 0;
+
+    let currentLoveScale = 1.0;
+    let targetLoveScale = 1.0;
+
+    let currentScatterScale = 1.0;
+    let targetScatterScale = 1.0;
+
+    let preScatterOutUntil = 0;
+    let scatterTargetsDirty = false;
+
+    function getViewportSize() {
+      if (window.visualViewport) {
+        return { w: Math.floor(window.visualViewport.width), h: Math.floor(window.visualViewport.height) };
+      }
+      return { w: window.innerWidth, h: window.innerHeight };
+    }
+
+    function resizeRenderer() {
+      if (!camera || !renderer) return;
+      const { w, h } = getViewportSize();
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, CONFIG.maxDpr));
+      updateMaydayFitScale();
+    }
+
+    function initThree() {
+      const { w, h } = getViewportSize();
+      scene = new THREE.Scene();
+
+      camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000);
+      camera.position.z = CONFIG.cameraZ;
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(w, h);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, CONFIG.maxDpr));
+      document.body.appendChild(renderer.domElement);
+
+      createMainParticles();
+      createGalaxySystem();
+      createMaydaySystem();
+      createBoboSprite();
+      createGlowstick();
+
+      applyState(STATE.PRE_IDLE);
+
+      window.addEventListener('resize', resizeRenderer);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', resizeRenderer);
+        window.visualViewport.addEventListener('scroll', resizeRenderer);
+      }
+      window.addEventListener('orientationchange', () => setTimeout(resizeRenderer, 250));
+    }
+
+    function makeDotTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64; canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+      g.addColorStop(0, 'rgba(255,255,255,1)');
+      g.addColorStop(0.35, 'rgba(255,255,255,0.9)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 64, 64);
+      return new THREE.CanvasTexture(canvas);
+    }
+
+    function createMainParticles() {
+      geometry = new THREE.BufferGeometry();
+      const n = CONFIG.particleCount;
+
+      const posArray = new Float32Array(n * 3);
+      const colArray = new Float32Array(n * 3);
+
+      currentPositions = new Float32Array(n * 3);
+      targetPositions = new Float32Array(n * 3);
+      currentColors = new Float32Array(n * 3);
+      targetColors = new Float32Array(n * 3);
+
+      vx = new Float32Array(n);
+      vy = new Float32Array(n);
+      vz = new Float32Array(n);
+      seed = new Float32Array(n);
+      hue = new Float32Array(n);
+      radius0 = new Float32Array(n);
+      angle0 = new Float32Array(n);
+
+      for (let i = 0; i < n; i++) {
+        const idx = i * 3;
+
+        const x = (Math.random() - 0.5) * 260;
+        const y = (Math.random() - 0.5) * 180;
+        const z = (Math.random() - 0.5) * 120;
+
+        posArray[idx] = x; posArray[idx + 1] = y; posArray[idx + 2] = z;
+        currentPositions[idx] = x; currentPositions[idx + 1] = y; currentPositions[idx + 2] = z;
+        targetPositions[idx] = x; targetPositions[idx + 1] = y; targetPositions[idx + 2] = z;
+
+        const c = new THREE.Color(CONFIG.palette[Math.floor(Math.random() * CONFIG.palette.length)]);
+        colArray[idx] = c.r; colArray[idx + 1] = c.g; colArray[idx + 2] = c.b;
+        currentColors[idx] = c.r; currentColors[idx + 1] = c.g; currentColors[idx + 2] = c.b;
+        targetColors[idx] = c.r; targetColors[idx + 1] = c.g; targetColors[idx + 2] = c.b;
+
+        vx[i] = (Math.random() - 0.5) * 0.015;
+        vy[i] = -(CONFIG.preFallMin + Math.random() * (CONFIG.preFallMax - CONFIG.preFallMin));
+        vz[i] = (Math.random() - 0.5) * 0.008;
+
+        seed[i] = Math.random() * 1000;
+        hue[i] = Math.random();
+        radius0[i] = 8 + Math.random() * 60;
+        angle0[i] = Math.random() * Math.PI * 2;
+      }
+
+      geometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+      geometry.setAttribute('color', new THREE.BufferAttribute(colArray, 3));
+
+      material = new THREE.PointsMaterial({
+        color: 0xffffff,
+        vertexColors: true,
+        size: CONFIG.particleSize,
+        map: makeDotTexture(),
+        transparent: true,
+        opacity: 0.85,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+
+      particles = new THREE.Points(geometry, material);
+      scene.add(particles);
+    }
+
+    function createGalaxySystem() {
+      const params = {
+        count: CONFIG.galaxyCount,
+        size: CONFIG.galaxySize,
+        radius: CONFIG.galaxyRadius,
+        branches: CONFIG.galaxyBranches,
+        spin: CONFIG.galaxySpin,
+        randomness: CONFIG.galaxyRandomness,
+        insideColor: '#ffbb66',
+        outsideColor: '#2244ff'
+      };
+
+      const g = new THREE.BufferGeometry();
+      const positions = new Float32Array(params.count * 3);
+      const colors = new Float32Array(params.count * 3);
+      const scales = new Float32Array(params.count);
+
+      const colorInside = new THREE.Color(params.insideColor);
+      const colorOutside = new THREE.Color(params.outsideColor);
+
+      for (let i = 0; i < params.count; i++) {
+        const i3 = i * 3;
+        const r = Math.random() * params.radius;
+        const branchAngle = ((i % params.branches) / params.branches) * Math.PI * 2;
+        const spinAngle = r * params.spin;
+
+        const randomX = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * params.randomness * r;
+        const randomY = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * params.randomness * (r * 0.5);
+        const randomZ = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * params.randomness * r;
+
+        positions[i3]     = Math.cos(branchAngle + spinAngle) * r + randomX;
+        positions[i3 + 1] = randomY;
+        positions[i3 + 2] = Math.sin(branchAngle + spinAngle) * r + randomZ;
+
+        const mixed = colorInside.clone().lerp(colorOutside, r / params.radius);
+        colors[i3] = mixed.r; colors[i3 + 1] = mixed.g; colors[i3 + 2] = mixed.b;
+
+        scales[i] = Math.random();
+      }
+
+      g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      g.setAttribute('aScale', new THREE.BufferAttribute(scales, 1));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 64; canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+      grad.addColorStop(0, 'rgba(255,255,255,1)');
+      grad.addColorStop(0.2, 'rgba(255,255,255,0.8)');
+      grad.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 64, 64);
+      const tex = new THREE.CanvasTexture(canvas);
+
+      const m = new THREE.PointsMaterial({
+        size: params.size,
+        sizeAttenuation: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        vertexColors: true,
+        map: tex,
+        transparent: true,
+        opacity: 0.9
+      });
+
+      galaxySystem = new THREE.Points(g, m);
+      galaxyGroup = new THREE.Group();
+      galaxyGroup.add(galaxySystem);
+
+      galaxyGroup.rotation.x = 0.4;
+      galaxyGroup.rotation.z = 0.1;
+      galaxyGroup.position.z = -50;
+
+      galaxyGroup.visible = false;
+      scene.add(galaxyGroup);
+    }
+
+    function makeTextPoints(text, {
+      canvasSize = 1024,
+      font = 'bold 128px "Cinzel", "Microsoft YaHei", sans-serif',
+      step = 3,
+      scale = 0.075,
+      yBias = 20
+    } = {}) {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvasSize;
+      canvas.height = canvasSize;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+      ctx.clearRect(0, 0, canvasSize, canvasSize);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = font;
+      ctx.fillText(text, canvasSize / 2, canvasSize / 2 + yBias);
+
+      const img = ctx.getImageData(0, 0, canvasSize, canvasSize).data;
+      const pts = [];
+      for (let y = 0; y < canvasSize; y += step) {
+        for (let x = 0; x < canvasSize; x += step) {
+          const idx = (y * canvasSize + x) * 4;
+          if (img[idx + 3] > 128) {
+            pts.push({
+              x: (x - canvasSize / 2) * scale,
+              y: (-(y - canvasSize / 2) * scale),
+            });
+          }
+        }
+      }
+      return pts;
+    }
+
+    function createMaydaySystem() {
+      const pts = makeTextPoints('MAYDAY', {
+        canvasSize: 1024,
+        font: 'bold 128px "Cinzel", "Microsoft YaHei", sans-serif',
+        step: 3,
+        scale: 0.075,
+        yBias: 20
+      });
+
+      const g = new THREE.BufferGeometry();
+      const positions = new Float32Array(pts.length * 3);
+      const colors = new Float32Array(pts.length * 3);
+      const sd = new Float32Array(pts.length);
+
+      const baseGold = new THREE.Color(CONFIG.gold);
+
+      for (let i = 0; i < pts.length; i++) {
+        const idx = i * 3;
+        positions[idx] = pts[i].x;
+        positions[idx + 1] = pts[i].y;
+        positions[idx + 2] = (Math.random() - 0.5) * 0.8;
+
+        const alt = new THREE.Color(CONFIG.palette[Math.floor(Math.random() * CONFIG.palette.length)]);
+        const mix = baseGold.clone().lerp(alt, Math.random() * 0.35);
+
+        colors[idx] = mix.r; colors[idx + 1] = mix.g; colors[idx + 2] = mix.b;
+        sd[i] = Math.random() * 1000;
+      }
+
+      g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      g.setAttribute('seed', new THREE.BufferAttribute(sd, 1));
+
+      const mat = new THREE.PointsMaterial({
+        size: 0.40,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.85,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        map: makeDotTexture()
+      });
+
+      maydayGeo = g;
+      maydaySystem = new THREE.Points(g, mat);
+      maydaySystem.position.y = CONFIG.maydayBaseY;
+      scene.add(maydaySystem);
+
+      updateMaydayFitScale();
+    }
+
+    function updateMaydayFitScale() {
+      if (!maydayGeo || !camera) return;
+      const arr = maydayGeo.attributes.position.array;
+      let minX = Infinity, maxX = -Infinity;
+      for (let i = 0; i < arr.length; i += 3) {
+        const x = arr[i];
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+      }
+      const textW = Math.max(1e-6, (maxX - minX));
+
+      const vFOV = camera.fov * Math.PI / 180;
+      const visibleHeight = 2 * Math.tan(vFOV / 2) * camera.position.z;
+      const visibleWidth = visibleHeight * camera.aspect;
+
+      const desiredW = visibleWidth * 0.82;
+      maydayFitScale = Math.min(1.25, Math.max(0.65, desiredW / textW));
+    }
+
+    function createBoboSprite() {
+      const canvas = document.createElement('canvas');
+      const size = 768;
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, size, size);
+
+      const cx = size / 2;
+      const cy = size / 2 + 90;
+
+      ctx.fillStyle = '#FF7A00';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 260, 225, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      const leaf = (x, y, w, h, tilt) => {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(tilt);
+        ctx.fillStyle = '#18A800';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.bezierCurveTo(-w * 0.6, -h * 0.2, -w * 0.6, -h * 0.9, 0, -h);
+        ctx.bezierCurveTo(w * 0.6, -h * 0.9, w * 0.6, -h * 0.2, 0, 0);
+        ctx.fill();
+        ctx.strokeStyle = '#0E6E00';
+        ctx.lineWidth = 12;
+        ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(0, -h * 0.92); ctx.lineTo(0, -h * 0.18); ctx.stroke();
+        ctx.lineWidth = 10;
+        ctx.beginPath(); ctx.moveTo(0, -h * 0.58); ctx.lineTo(-w * 0.25, -h * 0.38); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, -h * 0.58); ctx.lineTo(w * 0.25, -h * 0.38); ctx.stroke();
+        ctx.restore();
+      };
+
+      leaf(cx - 95, cy - 270, 140, 190, -0.45);
+      leaf(cx + 95, cy - 270, 150, 200, 0.40);
+      leaf(cx - 5,  cy - 300, 160, 230, 0.05);
+
+      ctx.strokeStyle = '#18A800';
+      ctx.lineWidth = 28;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx - 5, cy - 220);
+      ctx.lineTo(cx - 5, cy - 165);
+      ctx.stroke();
+
+      const eye = (x, y) => {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.ellipse(x, y, 75, 105, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#0A35FF';
+        ctx.beginPath();
+        ctx.ellipse(x, y + 8, 36, 58, 0, 0, Math.PI * 2);
+        ctx.fill();
+      };
+      eye(cx - 85, cy - 10);
+      eye(cx + 85, cy - 10);
+
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 22;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx - 90, cy + 105);
+      ctx.quadraticCurveTo(cx - 40, cy + 78, cx, cy + 105);
+      ctx.quadraticCurveTo(cx + 40, cy + 132, cx + 90, cy + 105);
+      ctx.stroke();
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.needsUpdate = true;
+
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+      boboSprite = new THREE.Sprite(mat);
+      boboSprite.scale.set(CONFIG.boboSpriteScale, CONFIG.boboSpriteScale, 1);
+      boboSprite.position.set(0, CONFIG.boboSpriteY, 0);
+      scene.add(boboSprite);
+    }
+
+    function createGlowstick() {
+      glowstick = new THREE.Group();
+
+      const topGeo = new THREE.CylinderGeometry(0.55, 0.55, 6.0, 18, 1, true);
+      const topMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 });
+      const top = new THREE.Mesh(topGeo, topMat);
+      top.position.y = 2.0;
+
+      const gripGeo = new THREE.CylinderGeometry(0.60, 0.60, 3.0, 18, 1, true);
+      const gripMat = new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.95 });
+      const grip = new THREE.Mesh(gripGeo, gripMat);
+      grip.position.y = -2.5;
+
+      const ringGeo = new THREE.TorusGeometry(0.62, 0.08, 12, 24);
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = -4.0;
+
+      const badgeGeo = new THREE.CircleGeometry(0.35, 22);
+      const badgeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+      const badge = new THREE.Mesh(badgeGeo, badgeMat);
+      badge.position.set(0.58, -0.7, 0);
+      badge.rotation.y = Math.PI / 2;
+
+      const logoTex = new THREE.TextureLoader().load('./assets/logo_mayday_25.png');
+      const logoMat = new THREE.MeshBasicMaterial({ map: logoTex, transparent: true, opacity: 0.95 });
+      const logoGeo = new THREE.PlaneGeometry(1.15, 0.45);
+      const logo = new THREE.Mesh(logoGeo, logoMat);
+      logo.position.set(0.62, -2.5, 0);
+      logo.rotation.y = Math.PI / 2;
+
+      glowstick.add(top, grip, ring, badge, logo);
+
+      const desiredHeight = CONFIG.boboSpriteScale * CONFIG.glowstickScaleRatioToBobo;
+      const scaleFactor = desiredHeight / GLOWSTICK_MODEL_HEIGHT;
+      glowstick.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+      glowstick.visible = false;
+      scene.add(glowstick);
+    }
+
+    function generatePoints(type) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const size = 700;
+      canvas.width = size; canvas.height = size;
+
+      ctx.clearRect(0, 0, size, size);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      if (['L', 'O', 'V', 'E'].includes(type)) {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 420px "Cinzel"';
+        ctx.fillText(type, size / 2, size / 2 + 55);
+      } else if (type === 'LOVE') {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 150px "Cinzel"';
+        ctx.fillText('LOVE', size / 2, size / 2 + 25);
+      }
+
+      const imgData = ctx.getImageData(0, 0, size, size).data;
+      const pts = [];
+      const step = 3;
+      const scale = 0.085;
+
+      for (let y = 0; y < size; y += step) {
+        for (let x = 0; x < size; x += step) {
+          const idx = (y * size + x) * 4;
+          if (imgData[idx + 3] > 128) {
+            pts.push({
+              x: (x - size / 2) * scale,
+              y: (-(y - size / 2) * scale)
+            });
+          }
+        }
+      }
+      return pts;
+    }
+
+    function updateShapeText(type) {
+      const pts = generatePoints(type);
+      const gold = new THREE.Color(CONFIG.gold);
+      const white = new THREE.Color(0xffffff);
+
+      for (let i = 0; i < CONFIG.particleCount; i++) {
+        const idx = i * 3;
+        const p = pts[i % pts.length];
+
+        targetPositions[idx] = p.x + (Math.random() - 0.5) * 0.18;
+        targetPositions[idx + 1] = p.y + (Math.random() - 0.5) * 0.18;
+        targetPositions[idx + 2] = (Math.random() - 0.5) * 4;
+
+        const pick = Math.random();
+        const base = pick > 0.6
+          ? gold
+          : new THREE.Color(CONFIG.palette[Math.floor(Math.random() * CONFIG.palette.length)]);
+        const mix = base.clone().lerp(white, Math.random() * 0.20);
+
+        targetColors[idx] = mix.r;
+        targetColors[idx + 1] = mix.g;
+        targetColors[idx + 2] = mix.b;
+      }
+    }
+
+    function resetPreIdleInitialState() {
+      if (particles) {
+        particles.position.set(0, 0, 0);
+        particles.rotation.set(0, 0, 0);
+      }
+      targetGroupX = 0;
+      targetGroupY = 0;
+
+      currentLoveScale = 1.0;
+      targetLoveScale = 1.0;
+      currentScatterScale = 1.0;
+      targetScatterScale = 1.0;
+
+      handEnergy = 0;
+      handSwayX = 0;
+      handSwayVel = 0;
+
+      const n = CONFIG.particleCount;
+      for (let i = 0; i < n; i++) {
+        const idx = i * 3;
+        const x = (Math.random() - 0.5) * 260;
+        const y = 95 + Math.random() * 120;
+        const z = (Math.random() - 0.5) * 120;
+
+        currentPositions[idx] = x;
+        currentPositions[idx + 1] = y;
+        currentPositions[idx + 2] = z;
+
+        targetPositions[idx] = x;
+        targetPositions[idx + 1] = y;
+        targetPositions[idx + 2] = z;
+
+        vx[i] = (Math.random() - 0.5) * 0.015;
+        vy[i] = -(CONFIG.preFallMin + Math.random() * (CONFIG.preFallMax - CONFIG.preFallMin));
+        vz[i] = (Math.random() - 0.5) * 0.008;
+      }
+    }
+
+    function updateTargetsPreIdle(time) {
+      const n = CONFIG.particleCount;
+
+      if (performance.now() < preScatterOutUntil) {
+        for (let i = 0; i < n; i++) {
+          const idx = i * 3;
+          targetPositions[idx]     = (Math.random() - 0.5) * 260;
+          targetPositions[idx + 1] = (Math.random() - 0.5) * 180;
+          targetPositions[idx + 2] = (Math.random() - 0.5) * 120;
+        }
+        return;
+      }
+
+      for (let i = 0; i < n; i++) {
+        const idx = i * 3;
+
+        let x = currentPositions[idx];
+        let y = currentPositions[idx + 1];
+        let z = currentPositions[idx + 2];
+
+        y += vy[i];
+        x += vx[i] + Math.sin(time * 0.6 + seed[i]) * 0.008;
+        z += vz[i];
+
+        if (y < -95) {
+          y = 95 + Math.random() * 25;
+          x = (Math.random() - 0.5) * 260;
+          z = (Math.random() - 0.5) * 120;
+        }
+
+        targetPositions[idx] = x;
+        targetPositions[idx + 1] = y;
+        targetPositions[idx + 2] = z;
+      }
+    }
+
+    function updateTargetsIdleSwirl(time, boost) {
+      const n = CONFIG.particleCount;
+      const omega = CONFIG.idleSwirlOmega * (1 + boost * CONFIG.idleHandBoost);
+
+      for (let i = 0; i < n; i++) {
+        const idx = i * 3;
+        const r0 = radius0[i];
+        const a0 = angle0[i];
+        const a = a0 + time * omega + seed[i] * 0.0015;
+
+        let x = Math.cos(a) * r0 * 1.55;
+        let y = Math.sin(a) * r0 * 0.52;
+
+        x += Math.sin(time * 1.7 + seed[i]) * CONFIG.idleSwirlJitter * 18;
+        y += Math.cos(time * 1.6 + seed[i]) * CONFIG.idleSwirlJitter * 12;
+
+        const z = (Math.sin(a * 1.2 + seed[i]) * 0.5) * 30;
+
+        targetPositions[idx] = x;
+        targetPositions[idx + 1] = y + 6;
+        targetPositions[idx + 2] = z;
+
+        if (i % 9 === 0) {
+          const c = new THREE.Color().setHSL((hue[i] + time * 0.02) % 1, 1.0, 0.62);
+          targetColors[idx] = c.r;
+          targetColors[idx + 1] = c.g;
+          targetColors[idx + 2] = c.b;
+        }
+      }
+    }
+
+    function buildScatterTargetsOnce() {
+      const n = CONFIG.particleCount;
+      const defaultGold = new THREE.Color(CONFIG.gold);
+
+      for (let i = 0; i < n; i++) {
+        const idx = i * 3;
+
+        const r = 35 * Math.cbrt(Math.random());
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+
+        targetPositions[idx]     = r * Math.sin(phi) * Math.cos(theta);
+        targetPositions[idx + 1] = r * Math.sin(phi) * Math.sin(theta);
+        targetPositions[idx + 2] = r * Math.cos(phi);
+
+        if (Math.random() > 0.8) {
+          const c = new THREE.Color().setHSL(Math.random(), 1.0, 0.6);
+          targetColors[idx] = c.r;
+          targetColors[idx + 1] = c.g;
+          targetColors[idx + 2] = c.b;
+        } else {
+          targetColors[idx] = defaultGold.r;
+          targetColors[idx + 1] = defaultGold.g;
+          targetColors[idx + 2] = defaultGold.b;
+        }
+      }
+    }
+
+    // ✅ 新增：基础几何距离工具（用于更稳的“拇指外展”判定）
+    function dist2(a, b) {
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      return Math.hypot(dx, dy);
+    }
+
+    // =========================
+    // 手势解析（L 更容易触发）
+    // =========================
+    function classifyGestureFromLandmarks(lm) {
+      const indexUp = lm[8].y < lm[6].y;
+      const midUp   = lm[12].y < lm[10].y;
+      const ringUp  = lm[16].y < lm[14].y;
+      const pinkyUp = lm[20].y < lm[18].y;
+
+      // ===== 更稳的“拇指外展”判定（放宽阈值）=====
+      // palmWidth：食指根(5)到小指根(17) 的宽度
+      const palmWidth = Math.max(1e-6, dist2(lm[5], lm[17]));
+      // thumbTip 到 palmCenter 的距离
+      const palmCenter = { x: (lm[5].x + lm[17].x) * 0.5, y: (lm[5].y + lm[17].y) * 0.5 };
+      const thumbOut = dist2(lm[4], palmCenter) / palmWidth;
+
+      // thumbOutRatio 越大，拇指越“外展”
+      // 这里取较宽松阈值：>= 0.78（比之前更容易触发）
+      const thumbExtended = thumbOut >= 1.00;
+
+      // SCATTER：五指张开
+      const openPalm = indexUp && midUp && ringUp && pinkyUp && thumbExtended;
+      if (openPalm) return "SCATTER";
+
+      // LOVE：拇指+食指+小指
+      if (indexUp && pinkyUp && !midUp && !ringUp && thumbExtended) return "LOVE";
+
+      // E：中指 + 无名指 + 小指（食指必须不抬起；拇指不限制）
+      if (!indexUp && midUp && ringUp && pinkyUp) return "E";
+
+      // V：食指+中指（必须优先于 L，避免 L 抢 V）
+      if (indexUp && midUp && !ringUp && !pinkyUp) return "V";
+
+      // IDLE：单食指（拇指不外展）
+      if (indexUp && !midUp && !ringUp && !pinkyUp && !thumbExtended) return "IDLE";
+
+      // ✅ L：食指竖直 + 拇指外展；其余三指允许最多 1 根误抬起（更好用）
+      const otherUpCount = [midUp, ringUp, pinkyUp].filter(Boolean).length;
+      if (indexUp && thumbExtended && otherUpCount <= 1) return "L";
+
+      // O：握拳（更宽容）
+      const count = [indexUp, midUp, ringUp, pinkyUp].filter(Boolean).length;
+      if (count === 0 && !thumbExtended) return "O";
+
+      return null;
+    }
+
+    function desiredFromRaw(raw, has) {
+      if (!has) return { state: STATE.PRE_IDLE, letter: null };
+
+      if (raw === "SCATTER") return { state: STATE.SCATTER, letter: null };
+      if (raw === "LOVE") return { state: STATE.LOVE, letter: null };
+      if (raw === "L" || raw === "O" || raw === "V" || raw === "E") return { state: STATE.LETTER, letter: raw };
+      if (raw === "IDLE") return { state: STATE.IDLE, letter: null };
+
+      return { state: STATE.PRE_IDLE, letter: null };
+    }
+
+    function debounceMsFor(state) {
+      if (state === STATE.SCATTER) return 0;
+      if (state === STATE.LOVE || state === STATE.LETTER) return CONFIG.debounceLoveLetterMs;
+      if (state === STATE.IDLE) return CONFIG.debounceIdleMs;
+      if (state === STATE.PRE_IDLE) return CONFIG.debounceExitMs;
+      return 120;
+    }
+
+    function applyState(nextState, nextLetter = null) {
+      if (nextState === currentState && nextLetter === currentLetter) return;
+
+      currentState = nextState;
+      currentLetter = nextLetter;
+
+      if (currentState === STATE.PRE_IDLE) {
+        resetPreIdleInitialState();
+        preScatterOutUntil = performance.now() + 800;
+      }
+
+      if (currentState === STATE.SCATTER) {
+        scatterTargetsDirty = true;
+      }
+
+      (async () => {
+        if (currentState === STATE.PRE_IDLE) {
+          await AudioBus.playPreIdleDingding();
+        } else if (currentState === STATE.IDLE) {
+          await AudioBus.playIdleLoop();
+        } else if (currentState === STATE.LETTER) {
+          await AudioBus.playLetter(currentLetter);
+        } else if (currentState === STATE.LOVE) {
+          await AudioBus.playLove();
+        } else if (currentState === STATE.SCATTER) {
+          // ✅ 改动：SCATTER 切入即停其他并播放 takecare
+          await AudioBus.playScatterTakecare();
+        }
+      })();
+
+      if (currentState === STATE.LETTER) updateShapeText(currentLetter);
+      if (currentState === STATE.LOVE) updateShapeText('LOVE');
+    }
+
+    async function preloadVision() {
+      try {
+        const vision = await FilesetResolver.forVisionTasks("./libs");
+        handLandmarker = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: { modelAssetPath: "./libs/hand_landmarker.task", delegate: "GPU" },
+          runningMode: "VIDEO",
+          numHands: 1
+        });
+        visionReady = true;
+        loader.innerText = "READY - TAP START";
+      } catch (e) {
+        console.warn("Vision preload failed:", e);
+        loader.innerText = "READY - TAP START";
+      }
+    }
+
+    async function initCameraByUserGesture() {
+      loader.style.display = "block";
+      loader.innerText = visionReady ? "OPENING CAMERA..." : "LOADING MODEL & CAMERA...";
+
+      try {
+        webcam = document.getElementById('webcam');
+
+        const constraints = {
+          audio: false,
+          video: {
+            facingMode: "user",
+            width: { ideal: CONFIG.isMobile ? 320 : 640 },
+            height: { ideal: CONFIG.isMobile ? 240 : 480 },
+            frameRate: { ideal: 30, max: 30 }
+          }
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        webcam.srcObject = stream;
+
+        webcam.onloadeddata = () => {
+          loader.style.display = 'none';
+          startOverlay.classList.add('hidden');
+
+          applyState(STATE.PRE_IDLE);
+
+          firstLoadDone = true;
+          lastHandSeenAt = Date.now();
+
+          predict();
+        };
+      } catch (e) {
+        console.warn("Camera init failed:", e);
+        loader.style.display = 'none';
+        startOverlay.classList.add('hidden');
+        applyState(STATE.PRE_IDLE);
+        firstLoadDone = true;
+      }
+    }
+
+    startBtn.addEventListener('click', async () => {
+      await AudioBus.unlockAllSilently();
+      await initCameraByUserGesture();
+    });
+
+    function landmarkToWorld(x01, y01, zWorld = 0) {
+      const x = (x01 * 2) - 1;
+      const y = -((y01 * 2) - 1);
+      const v = new THREE.Vector3(x, y, 0.5);
+      v.unproject(camera);
+      const dir = v.sub(camera.position).normalize();
+      const t = (zWorld - camera.position.z) / dir.z;
+      return camera.position.clone().add(dir.multiplyScalar(t));
+    }
+
+    function predict() {
+      const now = performance.now();
+      rawGesture = null;
+      hasHand = false;
+
+      if (handLandmarker && webcam && webcam.readyState >= 2) {
+        const results = handLandmarker.detectForVideo(webcam, now);
+        if (results.landmarks && results.landmarks.length > 0) {
+          hasHand = true;
+          lastHandSeenAt = Date.now();
+
+          const lm = results.landmarks[0];
+
+          const ix = 1 - lm[8].x;
+          const iy = lm[8].y;
+
+          rawGesture = classifyGestureFromLandmarks(lm);
+
+          if (lastIndexX != null && lastIndexY != null) {
+            const dx = ix - lastIndexX;
+            const dy = iy - lastIndexY;
+            const v = Math.min(1, Math.hypot(dx, dy) * 18);
+            handEnergy = handEnergy * 0.86 + v * 0.14;
+
+            const sx = (ix - 0.5) * 2;
+            handSwayX = handSwayX * 0.88 + sx * 0.12;
+
+            handSwayVel = handSwayVel * 0.82 + dx * 8.0 * 0.18;
+          }
+          lastIndexX = ix;
+          lastIndexY = iy;
+
+          if (rawGesture === 'LOVE' || rawGesture === 'SCATTER') {
+            const hx0 = 1 - lm[0].x;
+            const hx9 = 1 - lm[9].x;
+            const handSize = Math.hypot(hx0 - hx9, lm[0].y - lm[9].y);
+
+            const vFOV = camera.fov * Math.PI / 180;
+            const visibleHeight = 2 * Math.tan(vFOV / 2) * camera.position.z;
+            const visibleWidth = visibleHeight * camera.aspect;
+
+            const textBaseWidth = 40;
+            const minWidth = visibleWidth / 3.2;
+            const minScale = minWidth / textBaseWidth;
+
+            const farSize = 0.05;
+            const nearSize = 0.4;
+            const maxScale = 1.8;
+
+            let t = (handSize - farSize) / (nearSize - farSize);
+            t = Math.max(0, Math.min(1, t));
+            const scaled = maxScale * (1 - t) + minScale * t;
+
+            if (rawGesture === 'LOVE') targetLoveScale = scaled;
+            if (rawGesture === 'SCATTER') targetScatterScale = scaled;
+
+            targetGroupX = (ix - 0.5) * 18;
+            targetGroupY = 0;
+          } else if (rawGesture === 'IDLE') {
+            targetGroupX = (ix - 0.5) * 10;
+            targetGroupY = 0;
+          } else {
+            targetGroupX = 0;
+            targetGroupY = 0;
+          }
+        }
+      }
+
+      let effectiveHasHand = hasHand;
+      if (!hasHand && firstLoadDone) {
+        const dt = Date.now() - lastHandSeenAt;
+        if (dt < CONFIG.noHandReturnMs) {
+          effectiveHasHand = true;
+          rawGesture = null;
+        }
+      }
+
+      const desired = desiredFromRaw(rawGesture, effectiveHasHand);
+      const desiredState = desired.state;
+      const desiredLetter = desired.letter;
+      const needMs = debounceMsFor(desiredState);
+
+      const key = desiredState + (desiredLetter ? (":" + desiredLetter) : "");
+      if (candidateKey !== key) {
+        candidateKey = key;
+        candidateSince = Date.now();
+      }
+
+      const stable = (Date.now() - candidateSince) >= needMs;
+      if (stable) {
+        applyState(desiredState, desiredLetter);
+      }
+
+      requestAnimationFrame(predict);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const time = performance.now() * 0.001;
+
+      if (galaxyGroup) {
+        const showGalaxy = (currentState === STATE.LETTER || currentState === STATE.LOVE || currentState === STATE.SCATTER);
+        galaxyGroup.visible = showGalaxy;
+        if (showGalaxy && galaxySystem) {
+          galaxySystem.rotation.y += CONFIG.galaxyRotSpeed;
+        }
+      }
+
+      if (particles) {
+        particles.position.x += (targetGroupX - particles.position.x) * 0.18;
+        particles.position.y += (targetGroupY - particles.position.y) * 0.18;
+      }
+
+      if (currentState === STATE.LOVE) {
+        currentLoveScale += (targetLoveScale - currentLoveScale) * 0.10;
+      } else {
+        currentLoveScale = 1.0;
+      }
+      if (currentState === STATE.SCATTER) {
+        currentScatterScale += (targetScatterScale - currentScatterScale) * 0.10;
+      } else {
+        currentScatterScale = 1.0;
+      }
+
+      if (currentState === STATE.PRE_IDLE) {
+        material.opacity = 0.65;
+        updateTargetsPreIdle(time);
+      } else if (currentState === STATE.IDLE) {
+        material.opacity = 0.92;
+        updateTargetsIdleSwirl(time, handEnergy);
+      } else if (currentState === STATE.SCATTER) {
+        material.opacity = 0.95;
+        if (scatterTargetsDirty) {
+          buildScatterTargetsOnce();
+          scatterTargetsDirty = false;
+        }
+      } else if (currentState === STATE.LETTER) {
+        material.opacity = 0.95;
+      } else if (currentState === STATE.LOVE) {
+        material.opacity = 0.95;
+      }
+
+      const pos = geometry.attributes.position.array;
+      const cols = geometry.attributes.color.array;
+
+      let breathe = 1.0;
+      if (currentState === STATE.LOVE) breathe = currentLoveScale;
+      else if (currentState === STATE.SCATTER) breathe = currentScatterScale;
+      else if (currentState === STATE.IDLE) breathe = 1.0 + Math.sin(time * 0.7) * 0.02;
+
+      if (particles) {
+        if (currentState === STATE.LOVE || currentState === STATE.SCATTER) {
+          particles.rotation.z = handSwayX * 0.26 + Math.sin(time * 2.1) * 0.03 + handSwayVel * 0.010;
+        } else if (currentState === STATE.IDLE) {
+          particles.rotation.z = handSwayX * 0.12 + Math.sin(time * 1.7) * 0.02;
+        } else {
+          particles.rotation.z = 0;
+        }
+      }
+
+      const jitterIdle = 0.16;
+      const jitterScatter = 0.10;
+
+      for (let i = 0; i < CONFIG.particleCount; i++) {
+        const idx = i * 3;
+
+        currentPositions[idx]     += (targetPositions[idx]     - currentPositions[idx])     * CONFIG.lerpSpeed;
+        currentPositions[idx + 1] += (targetPositions[idx + 1] - currentPositions[idx + 1]) * CONFIG.lerpSpeed;
+        currentPositions[idx + 2] += (targetPositions[idx + 2] - currentPositions[idx + 2]) * CONFIG.lerpSpeed;
+
+        currentColors[idx]     += (targetColors[idx]     - currentColors[idx])     * CONFIG.colorLerp;
+        currentColors[idx + 1] += (targetColors[idx + 1] - currentColors[idx + 1]) * CONFIG.colorLerp;
+        currentColors[idx + 2] += (targetColors[idx + 2] - currentColors[idx + 2]) * CONFIG.colorLerp;
+
+        let jitter = 0;
+        if (currentState === STATE.IDLE) jitter = Math.sin(time * 1.6 + seed[i]) * jitterIdle;
+        if (currentState === STATE.SCATTER) jitter = Math.cos(time * 1.3 + seed[i]) * jitterScatter;
+
+        pos[idx]     = currentPositions[idx] * breathe + jitter;
+        pos[idx + 1] = currentPositions[idx + 1] * breathe;
+        pos[idx + 2] = currentPositions[idx + 2] + Math.sin(time * 0.9 + i * 0.02) * 0.06;
+
+        cols[idx]     = currentColors[idx];
+        cols[idx + 1] = currentColors[idx + 1];
+        cols[idx + 2] = currentColors[idx + 2];
+      }
+
+      geometry.attributes.position.needsUpdate = true;
+      geometry.attributes.color.needsUpdate = true;
+
+      if (maydaySystem) {
+        const show = (currentState === STATE.PRE_IDLE || currentState === STATE.IDLE);
+        maydaySystem.visible = show;
+        if (show) {
+          const opacity = (currentState === STATE.PRE_IDLE) ? 0.28 : 0.95;
+          const base = (currentState === STATE.PRE_IDLE) ? CONFIG.maydayPreScale : CONFIG.maydayIdleScale;
+
+          maydaySystem.material.opacity = opacity;
+
+          const sway = handSwayX * CONFIG.maydaySwayMax;
+          maydaySystem.rotation.z = sway + Math.sin(time * 4.0) * 0.03 * (currentState === STATE.IDLE ? (0.6 + handEnergy) : 0.35) + handSwayVel * 0.015;
+          maydaySystem.position.x = handSwayX * 9.5;
+
+          const fit = maydayFitScale;
+          maydaySystem.scale.setScalar(base * fit * (1.0 + handEnergy * (currentState === STATE.IDLE ? 0.05 : 0.02)));
+        } else {
+          maydaySystem.material.opacity = 0;
+        }
+      }
+
+      if (boboSprite) {
+        const show = (currentState === STATE.PRE_IDLE || currentState === STATE.IDLE);
+        boboSprite.visible = show;
+        if (show) {
+          const alpha = (currentState === STATE.PRE_IDLE) ? 0.18 : 0.95;
+          boboSprite.material.opacity = alpha;
+
+          const baseScale = CONFIG.boboSpriteScale;
+          const jump = Math.sin(time * (CONFIG.boboWobbleFreq + handEnergy * 1.2) * 2.1) * CONFIG.boboWobbleAmp;
+          const sway = handSwayX * CONFIG.boboSwayMax;
+          const grow = 1.0 + handEnergy * (currentState === STATE.IDLE ? CONFIG.boboScaleBoost : CONFIG.boboScaleBoost * 0.4);
+
+          boboSprite.scale.set(baseScale * grow, baseScale * grow, 1);
+          boboSprite.position.y = CONFIG.boboSpriteY + (currentState === STATE.IDLE ? jump : jump * 0.7);
+          boboSprite.position.x = handSwayX * 3.2;
+          boboSprite.material.rotation = sway;
+        } else {
+          boboSprite.material.opacity = 0;
+        }
+      }
+
+      if (glowstick) {
+        if (currentState === STATE.IDLE && hasHand && lastIndexX != null && lastIndexY != null) {
+          glowstick.visible = true;
+
+          const wpos = landmarkToWorld(lastIndexX, lastIndexY, 0);
+          glowstick.position.copy(wpos);
+          glowstick.position.z += CONFIG.glowstickFollowZ;
+
+          glowstick.rotation.z = handSwayX * CONFIG.glowstickSwayMax + Math.sin(time * 2.6) * 0.06;
+
+          const c = new THREE.Color().setHSL((time * 0.06) % 1, 1.0, 0.62);
+          glowstick.children[0].material.color.copy(c);
+          glowstick.children[2].material.color.copy(c);
+          glowstick.children[3].material.color.copy(c);
+        } else {
+          glowstick.visible = false;
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    initThree();
+    animate();
+    preloadVision();
+  </script>
+</body>
+</html>
